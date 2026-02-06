@@ -29,7 +29,27 @@ export default class Renderer {
 
     clear() {
         if (this.bgLoaded) {
-            this.ctx.drawImage(this.bgImage, 0, 0, this.width, this.height);
+            // Draw background with "cover" aspect ratio
+            const bgRatio = this.bgImage.width / this.bgImage.height;
+            const canvasRatio = this.width / this.height;
+
+            let drawWidth, drawHeight, offsetX, offsetY;
+
+            if (bgRatio > canvasRatio) {
+                // Image is wider than canvas (landscape vs portrait)
+                drawHeight = this.height;
+                drawWidth = this.height * bgRatio;
+                offsetX = (this.width - drawWidth) / 2;
+                offsetY = 0;
+            } else {
+                // Image is taller than canvas
+                drawWidth = this.width;
+                drawHeight = this.width / bgRatio;
+                offsetX = 0;
+                offsetY = (this.height - drawHeight) / 2;
+            }
+
+            this.ctx.drawImage(this.bgImage, offsetX, offsetY, drawWidth, drawHeight);
         } else {
             this.ctx.fillStyle = '#000033'; // Dark blue fallback to indicate "Image Not Loaded"
             this.ctx.fillRect(0, 0, this.width, this.height);
