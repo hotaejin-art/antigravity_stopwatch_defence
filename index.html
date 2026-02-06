@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stopwatch Defense</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=Roboto+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-layer">
+            <div id="hud">
+                <div id="wave-container">Wave: <span id="wave">1</span></div>
+                <div id="health-container">HP: <span id="health">100</span></div>
+                <button id="shop-btn">SHOP</button>
+                <div id="score-container">COIN: <span id="score">0</span></div>
+                <div id="controls">
+                    <button id="menu-btn">MENU</button>
+                </div>
+            </div>
+            <div id="stopwatch-display">00.00</div>
+            <div id="message-area"></div>
+
+            <div id="pause-screen" class="screen hidden">
+                <h1>PAUSED</h1>
+                <button id="resume-btn">RESUME</button>
+                <button id="pause-menu-btn">MAIN MENU</button>
+            </div>
+
+            <div id="shop-screen" class="screen hidden">
+                <h2>SHOP</h2>
+                <div id="coins-display">Coins: <span id="shop-coins">0</span></div>
+                <div class="shop-items">
+                    <div class="shop-item" data-item="radius">
+                        <img src="img/icon_radius.png" alt="Radius" class="shop-icon">
+                        <div class="shop-info">
+                            <span class="shop-name">Radius</span>
+                            <div class="level-indicator">
+                                <div class="pip empty"></div>
+                                <div class="pip empty"></div>
+                            </div>
+                            <button class="buy-btn">100</button>
+                        </div>
+                    </div>
+                    <div class="shop-item" data-item="power">
+                        <img src="img/icon_power.png" alt="Power" class="shop-icon">
+                        <div class="shop-info">
+                            <span class="shop-name">Power</span>
+                            <div class="level-indicator">
+                                <div class="pip empty"></div>
+                                <div class="pip empty"></div>
+                            </div>
+                            <button class="buy-btn">150</button>
+                        </div>
+                    </div>
+                    <!-- Tolerance Removed -->
+                    <div class="shop-item" data-item="heal">
+                        <img src="img/icon_repair.png" alt="Repair" class="shop-icon">
+                        <div class="shop-info">
+                            <span class="shop-name">Repair</span>
+                            <div class="level-desc">+20 HP</div>
+                            <button class="buy-btn">100</button>
+                        </div>
+                    </div>
+                    <div class="shop-item" data-item="maxHealth">
+                        <img src="img/icon_fortify.png" alt="Fortify" class="shop-icon">
+                        <div class="shop-info">
+                            <span class="shop-name">Fortify</span>
+                            <div class="level-desc">+10 Max HP</div>
+                            <button class="buy-btn">100</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="close-shop-btn">Resume</button>
+            </div>
+            <div id="start-screen" class="screen">
+                <!-- Title is part of background image now -->
+                <!-- <h1>Stopwatch Defense</h1> -->
+                <div class="difficulty-container">
+                    <button class="diff-btn" data-diff="EASY">EASY</button>
+                    <button class="diff-btn" data-diff="NORMAL">NORMAL</button>
+                    <button class="diff-btn" data-diff="HARD">HARD</button>
+                    <button class="diff-btn" data-diff="HELL">HELL</button>
+                </div>
+            </div>
+            <div id="game-over-screen" class="screen hidden">
+                <h1>Game Over</h1>
+                <p>Score: <span id="final-score">0</span></p>
+                <button id="restart-btn">Restart</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="js/main.js?v=4"></script>
+</body>
+
+</html>
