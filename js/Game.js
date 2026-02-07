@@ -101,6 +101,14 @@ export default class Game {
             this.returnToMenu();
         });
 
+        // Music Toggle
+        const musicBtn = document.getElementById('music-toggle-btn');
+        musicBtn.addEventListener('click', () => {
+            this.soundManager.playUI('click');
+            const enabled = this.soundManager.toggleMusic();
+            musicBtn.textContent = enabled ? 'MUSIC: ON' : 'MUSIC: OFF';
+        });
+
         // Input handling
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') this.handleInput();

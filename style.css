@@ -43,10 +43,14 @@ canvas {
 
 #hud {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
     display: flex;
-    gap: 20px;
+    justify-content: space-between;
+    align-items: flex-start;
+    /* Align top in case of different heights */
     font-size: 24px;
     font-weight: bold;
     color: #fff;
@@ -55,12 +59,14 @@ canvas {
     z-index: 50;
 }
 
-#controls {
-    margin-left: auto;
-    /* Push to right */
+.hud-left,
+.hud-right {
     display: flex;
-    gap: 10px;
+    gap: 20px;
+    align-items: center;
 }
+
+/* Remove #controls styles */
 
 #pause-btn,
 #menu-btn {
@@ -106,6 +112,7 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    gap: 20px;
     pointer-events: auto;
     z-index: 100;
 }

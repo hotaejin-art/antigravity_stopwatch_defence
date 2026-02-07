@@ -5,6 +5,8 @@ export default class SoundManager {
 
         // Master volume
         this.masterGain = null;
+        this.isMusicEnabled = true;
+        this.bgmUrl = 'audio/bgm.mp3?v=3'; // Default URL needed for resume
     }
 
     init() {
@@ -101,17 +103,24 @@ export default class SoundManager {
 
     // --- BGM ---
     playBGM(url) {
+        if (!url) url = this.bgmUrl;
+        this.bgmUrl = url;
+
         if (this.bgmAudio) {
-            // Already playing this track?
-            if (!this.bgmAudio.paused && this.bgmAudio.src.includes(url)) return;
+            // Already initialized?
+            if (!this.bgmAudio.paused && this.bgmAudio.src.includes(url)) {
+                if (!this.isMusicEnabled) this.bgmAudio.pause();
+                return;
+            }
             this.stopBGM();
         }
 
+        if (!this.isMusicEnabled) return;
+
         this.bgmAudio = new Audio(url);
         this.bgmAudio.loop = true;
-        this.bgmAudio.volume = 0.4; // Slightly lower than effects
+        this.bgmAudio.volume = 0.4;
 
-        // Attempt to play
         this.bgmAudio.play().catch(e => {
             console.warn("BGM autoplay prevented:", e);
         });
@@ -121,7 +130,19 @@ export default class SoundManager {
         if (this.bgmAudio) {
             this.bgmAudio.pause();
             this.bgmAudio.currentTime = 0;
+            // Don't fully nullify if you want to resume? 
+            // Actually, keep it simple. Destroy on stop.
             this.bgmAudio = null;
         }
+    }
+
+    toggleMusic() {
+        this.isMusicEnabled = !this.isMusicEnabled;
+        if (this.isMusicEnabled) {
+            this.playBGM(this.bgmUrl);
+        } else {
+            this.stopBGM();
+        }
+        return this.isMusicEnabled;
     }
 }

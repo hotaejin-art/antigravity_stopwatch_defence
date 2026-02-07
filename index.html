@@ -16,11 +16,13 @@
         <canvas id="game-canvas"></canvas>
         <div id="ui-layer">
             <div id="hud">
-                <div id="wave-container">Wave: <span id="wave">1</span></div>
-                <div id="health-container">HP: <span id="health">100</span></div>
-                <button id="shop-btn">SHOP</button>
-                <div id="score-container">COIN: <span id="score">0</span></div>
-                <div id="controls">
+                <div class="hud-left">
+                    <div id="wave-container">Wave: <span id="wave">1</span></div>
+                    <div id="health-container">HP: <span id="health">100</span></div>
+                </div>
+                <div class="hud-right">
+                    <div id="score-container">COIN: <span id="score">0</span></div>
+                    <button id="shop-btn">SHOP</button>
                     <button id="menu-btn">MENU</button>
                 </div>
             </div>
@@ -30,6 +32,7 @@
             <div id="pause-screen" class="screen hidden">
                 <h1>PAUSED</h1>
                 <button id="resume-btn">RESUME</button>
+                <button id="music-toggle-btn">MUSIC: ON</button>
                 <button id="pause-menu-btn">MAIN MENU</button>
             </div>
 
