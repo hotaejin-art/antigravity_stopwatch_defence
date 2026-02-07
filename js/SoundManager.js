@@ -101,6 +101,27 @@ export default class SoundManager {
         this.playTone(200, 'triangle', 1.0, now + 1.0);
     }
 
+    playBossSpawn() {
+        if (!this.initialized) return;
+        const audio = new Audio('audio/boss_spawn.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.warn("Boss spawn SFX failed", e));
+    }
+
+    playOverdriveStart() {
+        if (!this.initialized) return;
+        const audio = new Audio('audio/overdrive_start.mp3');
+        audio.volume = 0.6;
+        audio.play().catch(e => console.warn("Overdrive start SFX failed", e));
+    }
+
+    playOverdriveEnd() {
+        if (!this.initialized) return;
+        const audio = new Audio('audio/overdrive_end.mp3');
+        audio.volume = 0.6;
+        audio.play().catch(e => console.warn("Overdrive end SFX failed", e));
+    }
+
     // --- BGM ---
     playBGM(url) {
         if (!url) url = this.bgmUrl;

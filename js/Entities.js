@@ -262,6 +262,7 @@ export class FloatingText {
         this.life = 1.0; // 1 second
         this.velocity = 50;
         this.active = true;
+        this.size = 20; // Default size
     }
 
     update(deltaTime) {
@@ -276,8 +277,16 @@ export class FloatingText {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.life); // Fade out
         ctx.fillStyle = this.color;
-        ctx.font = '20px "Major Mono Display"';
+
+        ctx.font = `${this.size}px "Major Mono Display"`;
         ctx.textAlign = 'center';
+
+        // Add glow for larger texts?
+        if (this.size > 20) {
+            ctx.shadowColor = this.color;
+            ctx.shadowBlur = 10;
+        }
+
         ctx.fillText(this.text, this.x, this.y);
         ctx.restore();
     }
@@ -360,9 +369,13 @@ export class Boss {
         this.radius = 60;
 
         // Orbit Physics
-        this.orbitRadius = 250;
-        this.angle = 0;
+        this.targetOrbitRadius = 250;
+        this.orbitRadius = canvasHeight * 0.8; // Start far out (entrance animation)
+        this.orbitAngle = 0; // Renamed from angle to avoid confusion
         this.orbitSpeed = 0.5; // Rad/s
+
+        // Self Rotation
+        this.selfRotation = 0;
 
         // Center position (orbit center)
         this.cx = canvasWidth / 2;
@@ -373,6 +386,18 @@ export class Boss {
 
         this.active = true;
 
+        // Visuals
+        this.image = new Image();
+        if (this.level === 1) {
+            this.image.src = 'img/boss_a.png';
+        } else if (this.level === 2) {
+            this.image.src = 'img/boss_b.png';
+        } else if (this.level === 3) {
+            this.image.src = 'img/boss_c.png';
+        } else if (this.level === 4) {
+            this.image.src = 'img/boss_d.png';
+        }
+
         // Abilities
         this.ability = 'NONE';
         // Simple assignment for now
@@ -381,28 +406,48 @@ export class Boss {
 
         // Enrage / Surge
         this.isSurging = false;
-        this.surgeTimer = 0;
         this.surgeCooldown = 15.0; // Cooldown between surges
-        this.surgeDuration = 5.0; // How long surge lasts
+        this.surgeTimer = this.surgeCooldown; // Start with cooldown so it doesn't trigger immediately
+        this.surgeDuration = 8.0; // How long surge lasts
         this.justStartedSurge = false; // Flag for Game.js to catch
+        this.justEndedSurge = false; // Flag for end of surge
     }
 
     update(deltaTime) {
         if (!this.active) return;
 
-        // Orbit Center
-        this.angle += this.orbitSpeed * deltaTime;
+        // Entrance Animation: Shrink orbit radius
+        if (this.orbitRadius > this.targetOrbitRadius) {
+            this.orbitRadius -= 150 * deltaTime; // Approach speed
+            if (this.orbitRadius < this.targetOrbitRadius) {
+                this.orbitRadius = this.targetOrbitRadius;
+            }
+        }
 
-        this.x = this.cx + Math.cos(this.angle) * this.orbitRadius;
-        this.y = this.cy + Math.sin(this.angle) * this.orbitRadius;
+        // Orbit Center
+        let currentOrbitSpeed = this.orbitSpeed;
+        if (this.isSurging) {
+            currentOrbitSpeed *= 4.0; // Much faster during surge
+        }
+        this.orbitAngle += currentOrbitSpeed * deltaTime;
+
+        this.x = this.cx + Math.cos(this.orbitAngle) * this.orbitRadius;
+        this.y = this.cy + Math.sin(this.orbitAngle) * this.orbitRadius;
+
+        // Self Rotation (Visual)
+        // Slow rotate normally, Fast during Surge
+        const rotationSpeed = this.isSurging ? 5.0 : 0.5;
+        this.selfRotation += rotationSpeed * deltaTime;
 
         // Surge Logic
         this.justStartedSurge = false; // Reset frame flag
+        this.justEndedSurge = false;
 
         if (this.isSurging) {
             this.surgeTimer -= deltaTime;
             if (this.surgeTimer <= 0) {
                 this.isSurging = false;
+                this.justEndedSurge = true;
                 this.surgeTimer = this.surgeCooldown;
             }
         } else {
@@ -431,44 +476,65 @@ export class Boss {
     draw(ctx) {
         if (!this.active) return;
 
+        // Draw Orbit Path - REMOVED per user request
+        // ctx.beginPath();
+        // ctx.strokeStyle = 'rgba(255, 0, 85, 0.2)';
+        // ctx.lineWidth = 2;
+        // ctx.arc(this.cx, this.cy, this.orbitRadius, 0, Math.PI * 2);
+        // ctx.stroke();
+
         ctx.save();
-
-        // Draw Orbit Path (optional, for visual clarity)
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255, 0, 85, 0.2)';
-        ctx.lineWidth = 2;
-        ctx.arc(this.cx, this.cy, this.orbitRadius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Draw Boss
         // Translate to boss position
         ctx.translate(this.x, this.y);
 
-        // Placeholder visual: Giant Polygon
-        ctx.beginPath();
-        const sides = 5 + (this.level % 3); // Shape changes with level
-        const r = this.radius;
-        for (let i = 0; i < sides; i++) {
-            const theta = (i / sides) * Math.PI * 2;
-            const px = Math.cos(theta) * r;
-            const py = Math.sin(theta) * r;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
+        // Draw Boss Image (Level 1-4)
+        if (this.level <= 4 && this.image.complete) {
+            ctx.rotate(this.selfRotation);
+            const size = this.radius * 2.8; // Adjust size multiplier as needed
+            ctx.drawImage(this.image, -size / 2, -size / 2, size, size);
+
+            // Optional: Glow effect if surging
+            if (this.isSurging) {
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = 0.5;
+                ctx.drawImage(this.image, -size / 2, -size / 2, size, size);
+                ctx.globalAlpha = 1.0;
+                ctx.globalCompositeOperation = 'source-over';
+            }
+        } else {
+            // Placeholder visual: Giant Polygon
+            ctx.beginPath();
+            const sides = 5 + (this.level % 3); // Shape changes with level
+            const r = this.radius;
+            for (let i = 0; i < sides; i++) {
+                const theta = (i / sides) * Math.PI * 2;
+                const px = Math.cos(theta) * r;
+                const py = Math.sin(theta) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = '#ff0055'; // Boss Red
+            ctx.shadowColor = '#ff0055';
+            ctx.shadowBlur = 20;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
         }
-        ctx.closePath();
 
-        ctx.fillStyle = '#ff0055'; // Boss Red
-        ctx.shadowColor = '#ff0055';
-        ctx.shadowBlur = 20;
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.stroke();
+        ctx.restore();
 
-        // Draw Name
+        // Draw Name & Health Bar (Post-restore so no rotation)
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 24px "Major Mono Display"';
         ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
         ctx.fillText(this.name, 0, -this.radius - 20);
 
         // Draw Health Bar

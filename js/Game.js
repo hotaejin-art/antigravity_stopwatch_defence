@@ -37,7 +37,9 @@ export default class Game {
         this.score = 0;
         this.coins = 0;
         this.combo = 0;
+        this.combo = 0;
         this.isProcessingAttack = false;
+        this.isOverdrivePaused = false; // Flag to prevent target overwrite during freeze
 
         // Bind methods
         this.loop = this.loop.bind(this);
@@ -249,6 +251,7 @@ export default class Game {
 
     handleInput() {
         if (!this.isRunning) return;
+        if (this.isPaused) return; // Prevent interaction during Pause or Overdrive Freeze
         if (this.isProcessingAttack) return; // Prevent rapid fire
 
         this.isProcessingAttack = true; // Lock input
@@ -261,6 +264,12 @@ export default class Game {
         setTimeout(() => {
             this.isProcessingAttack = false; // Unlock input
             if (this.isRunning) {
+                // Prevent updating target if we are in Overdrive Pause (target was already set by Overdrive logic)
+                if (this.isOverdrivePaused) {
+                    this.stopwatch.start();
+                    return;
+                }
+
                 if (this.currentBoss && this.currentBoss.isSurging) {
                     // Random decimal target for Surge
                     const decimal = Math.floor(Math.random() * 90) + 10;
@@ -426,17 +435,52 @@ export default class Game {
 
                     // Surge Logic Check
                     if (this.currentBoss.justStartedSurge) {
-                        this.soundManager.playUI('error');
-                        this.floatingTexts.push(new FloatingText("CHRONO SURGE!", this.canvas.width / 2, this.canvas.height / 2 - 100, '#ff0055'));
+                        this.soundManager.playOverdriveStart();
 
-                        // Set Decimal Target (Short & Irregular)
+                        // Visual Flare
+                        // Create a specific large floating text or just standard for now, will update class next
+                        const surgeText = new FloatingText("OVERDRIVE!", this.canvas.width / 2, this.canvas.height / 2 - 150, '#ff0055');
+                        surgeText.size = 60; // Manually properties injection before class update, or just wait for class update
+                        this.floatingTexts.push(surgeText);
+
+                        // Brief Pause for impact (Freeze frame)
+                        this.isPaused = true;
+                        this.isOverdrivePaused = true; // Set flag
+
+                        // Set Red Glow on Stopwatch
+                        document.getElementById('stopwatch-display').style.color = '#ff0055';
+                        document.getElementById('stopwatch-display').style.textShadow = '0 0 20px #ff0055';
+
+                        // Set Decimal Target IMMEDIATELY
                         const decimal = Math.floor(Math.random() * 90) + 10; // .10 to .99
                         const time = Math.floor(this.stopwatch.time) + 1 + (decimal / 100);
                         this.stopwatch.updateTarget(time);
+
+                        setTimeout(() => {
+                            this.isPaused = false;
+                            this.isOverdrivePaused = false; // Clear flag
+                            this.lastTime = performance.now(); // Reset delta so no huge jump
+
+                        }, 2000); // 2 second freeze
+                    }
+
+                    // Surge End Check
+                    if (this.currentBoss.justEndedSurge) {
+                        const endText = new FloatingText("OVERDRIVE ENDED", this.canvas.width / 2, this.canvas.height / 2 - 150, '#00ff88');
+                        endText.size = 40;
+                        this.floatingTexts.push(endText);
+                        this.soundManager.playOverdriveEnd();
+                    }
+
+                    // Reset Stopwatch Color if not surging
+                    if (!this.currentBoss.isSurging && !this.currentBoss.justStartedSurge) {
+                        document.getElementById('stopwatch-display').style.color = 'rgba(255, 255, 255, 0.9)';
+                        document.getElementById('stopwatch-display').style.textShadow = '0 0 10px rgba(0, 0, 0, 0.8)';
                     }
 
                     // Faster spawn during surge
-                    let currentSpawnInterval = this.currentBoss.isSurging ? 0.3 : 1.5;
+                    let spawnMultiplier = (this.currentBoss.level === 1) ? 3.0 : 1.0;
+                    let currentSpawnInterval = (this.currentBoss.isSurging ? 0.3 : 1.5) * spawnMultiplier;
 
                     if (this.spawnTimer >= currentSpawnInterval) {
                         this.spawnTimer = 0;
@@ -456,8 +500,13 @@ export default class Game {
                     // Reset Effects
                     this.stopwatch.setTimeScale(1.0);
                     this.stopwatch.setGlitch(false);
+                    document.getElementById('stopwatch-display').style.color = 'rgba(255, 255, 255, 0.9)';
+                    document.getElementById('stopwatch-display').style.textShadow = '0 0 10px rgba(0, 0, 0, 0.8)';
 
                     this.soundManager.playUI('buy'); // Victory sound placeholder
+
+                    // Restore Normal BGM
+                    this.soundManager.playBGM('audio/bgm.mp3?v=3');
                 }
             } else if (this.enemiesSpawned < this.enemiesInWave) {
                 this.spawnTimer += deltaTime;
@@ -487,9 +536,10 @@ export default class Game {
                 // Delay slightly before boss start?
                 setTimeout(() => this.startBossWave(), 1000);
             } else {
-                this.enemiesInWave += 5;
+                // Reset enemies count for normal wave (Calculate based on wave number)
+                this.enemiesInWave = 10 + (this.wave * 5);
                 this.enemiesSpawned = 0;
-                this.spawnInterval = Math.max(0.5, this.spawnInterval - 0.1);
+                this.spawnInterval = Math.max(0.5, 2.0 - (this.wave * 0.1));
 
                 // Announce next wave
                 this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
@@ -614,6 +664,10 @@ export default class Game {
         } else if (this.currentBoss.ability === 'GLITCH') {
             this.stopwatch.setGlitch(true);
         }
+
+        // Play Boss BGM
+        this.soundManager.playBGM('audio/bgm_boss.mp3');
+        this.soundManager.playBossSpawn();
     }
 
     jumpToWave(targetWave) {
@@ -650,6 +704,9 @@ export default class Game {
 
             // Announce
             this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
+
+            // Ensure Normal BGM
+            this.soundManager.playBGM('audio/bgm.mp3?v=3');
         }
     }
 
@@ -776,5 +833,6 @@ export default class Game {
         this.shockwaves = [];
         this.floatingTexts = [];
         this.renderer.clear();
+        this.soundManager.playBGM('audio/bgm.mp3?v=3');
     }
 }
