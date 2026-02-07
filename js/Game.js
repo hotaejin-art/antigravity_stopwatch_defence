@@ -1,7 +1,7 @@
 import Renderer from './Renderer.js?v=2';
 import Stopwatch from './Stopwatch.js?v=2';
 import Shop from './Shop.js';
-import { Castle, Enemy, Shockwave, FloatingText, WaveAnnouncement } from './Entities.js';
+import { Castle, Enemy, Shockwave, FloatingText, WaveAnnouncement, Boss } from './Entities.js';
 import SoundManager from './SoundManager.js?v=3';
 
 export default class Game {
@@ -24,6 +24,11 @@ export default class Game {
         this.enemiesSpawned = 0;
         this.waveTimer = 0;
         this.betweenWaves = false;
+
+        // Boss State
+        this.currentBoss = null;
+        this.isBossWave = false;
+        this.bossLevel = 0; // Starts at 0, increments to 1 for Boss A
 
         this.isRunning = false;
         this.lastTime = 0;
@@ -194,6 +199,10 @@ export default class Game {
             this.enemiesSpawned = 0;
             this.betweenWaves = false;
 
+            this.isBossWave = false;
+            this.currentBoss = null;
+            this.bossLevel = 0;
+
             this.enemies = [];
             this.shockwaves = [];
             this.floatingTexts = [];
@@ -235,7 +244,14 @@ export default class Game {
         setTimeout(() => {
             this.isProcessingAttack = false; // Unlock input
             if (this.isRunning) {
-                this.stopwatch.updateTarget();
+                if (this.currentBoss && this.currentBoss.isSurging) {
+                    // Random decimal target for Surge
+                    const decimal = Math.floor(Math.random() * 90) + 10;
+                    const time = Math.floor(this.stopwatch.time) + 1 + (decimal / 100);
+                    this.stopwatch.updateTarget(time);
+                } else {
+                    this.stopwatch.updateTarget();
+                }
                 this.stopwatch.start();
             }
         }, 500); // Brief pause
@@ -254,6 +270,16 @@ export default class Game {
             const radiusMult = 1 + (radiusLvl - 1) * 0.2;
 
             this.shockwaves.push(new Shockwave(centerX, centerY, '#00ff88', Math.max(this.canvas.width, this.canvas.height) * radiusMult));
+
+            // Boss Damage
+            if (this.currentBoss && this.currentBoss.active) {
+                const powerLvl = this.shop.getUpgrade('power').level;
+                // Perfect might deal double damage or just guanrateed hit?
+                this.currentBoss.takeDamage(1 * powerLvl);
+                this.floatingTexts.push(new FloatingText(`-${1 * powerLvl}`, this.currentBoss.x, this.currentBoss.y, '#ff0055'));
+                // Play Boss Hit Sound?
+            }
+
             // Kill all enemies
             if (this.enemies.length > 0) this.soundManager.playExplosion();
             this.enemies.forEach(e => {
@@ -281,6 +307,13 @@ export default class Game {
             const radius = 450 * (1 + (radiusLvl - 1) * 0.2);
 
             this.shockwaves.push(new Shockwave(centerX, centerY, '#ffff00', radius));
+
+            // Boss Damage (Great or higher)
+            if (this.currentBoss && this.currentBoss.active) {
+                const powerLvl = this.shop.getUpgrade('power').level;
+                this.currentBoss.takeDamage(1 * powerLvl);
+                this.floatingTexts.push(new FloatingText(`-${1 * powerLvl}`, this.currentBoss.x, this.currentBoss.y, '#ffae00'));
+            }
 
             this.combo = 0; // Reset combo
             this.coins += 2;
@@ -364,39 +397,97 @@ export default class Game {
         this.stopwatch.update(deltaTime);
 
         // Spawn Enemies
-        if (!this.betweenWaves && this.enemiesSpawned < this.enemiesInWave) {
-            this.spawnTimer += deltaTime;
-            if (this.spawnTimer >= this.spawnInterval) {
-                this.spawnTimer = 0;
-                this.enemiesSpawned++;
+        // Spawn Enemies
+        if (!this.betweenWaves) {
+            if (this.isBossWave) {
+                // Boss Logic
+                if (this.currentBoss && this.currentBoss.active) {
+                    this.currentBoss.update(deltaTime);
 
-                // Difficulty scaling
-                let type = 'RUSHER';
-                if (this.wave > 1 && Math.random() > 0.8) type = 'TANK';
-                if (this.wave > 2 && Math.random() > 0.7) type = 'SWARMER';
-                if (this.wave > 4 && Math.random() > 0.8) type = 'SNIPER';
+                    // Minion Spawning during boss
+                    this.spawnTimer += deltaTime;
 
-                this.enemies.push(new Enemy(type, this.canvas.width, this.canvas.height));
+                    // Surge Logic Check
+                    if (this.currentBoss.justStartedSurge) {
+                        this.soundManager.playUI('error');
+                        this.floatingTexts.push(new FloatingText("CHRONO SURGE!", this.canvas.width / 2, this.canvas.height / 2 - 100, '#ff0055'));
+
+                        // Set Decimal Target (Short & Irregular)
+                        const decimal = Math.floor(Math.random() * 90) + 10; // .10 to .99
+                        const time = Math.floor(this.stopwatch.time) + 1 + (decimal / 100);
+                        this.stopwatch.updateTarget(time);
+                    }
+
+                    // Faster spawn during surge
+                    let currentSpawnInterval = this.currentBoss.isSurging ? 0.3 : 1.5;
+
+                    if (this.spawnTimer >= currentSpawnInterval) {
+                        this.spawnTimer = 0;
+                        // Spawn minions near boss or random?
+                        this.enemies.push(new Enemy('RUSHER', this.canvas.width, this.canvas.height));
+                    }
+                } else if (this.currentBoss && !this.currentBoss.active) {
+                    // Boss Defeated!
+                    this.isBossWave = false;
+                    this.currentBoss = null;
+
+                    // Clear minions
+                    this.enemies.forEach(e => e.takeDamage(999));
+                    this.enemies = [];
+                    this.enemiesSpawned = this.enemiesInWave; // Force clear condition
+
+                    // Reset Effects
+                    this.stopwatch.setTimeScale(1.0);
+                    this.stopwatch.setGlitch(false);
+
+                    this.soundManager.playUI('buy'); // Victory sound placeholder
+                }
+            } else if (this.enemiesSpawned < this.enemiesInWave) {
+                this.spawnTimer += deltaTime;
+                if (this.spawnTimer >= this.spawnInterval) {
+                    this.spawnTimer = 0;
+                    this.enemiesSpawned++;
+
+                    // Difficulty scaling
+                    let type = 'RUSHER';
+                    if (this.wave > 1 && Math.random() > 0.8) type = 'TANK';
+                    if (this.wave > 2 && Math.random() > 0.7) type = 'SWARMER';
+                    if (this.wave > 4 && Math.random() > 0.8) type = 'SNIPER';
+
+                    this.enemies.push(new Enemy(type, this.canvas.width, this.canvas.height));
+                }
             }
-        } else if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
+        }
+
+        // Check Wave Clear
+        if (!this.isBossWave && this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
             // Wave Clear!
             this.betweenWaves = true;
             this.wave++;
-            this.enemiesInWave += 5;
-            this.enemiesSpawned = 0;
-            this.spawnInterval = Math.max(0.5, this.spawnInterval - 0.1); // Speed up
+
+            // Check for Boss Wave (Every 3rd wave)
+            if (this.wave % 3 === 0) {
+                // Delay slightly before boss start?
+                setTimeout(() => this.startBossWave(), 1000);
+            } else {
+                this.enemiesInWave += 5;
+                this.enemiesSpawned = 0;
+                this.spawnInterval = Math.max(0.5, this.spawnInterval - 0.1);
+
+                // Announce next wave
+                this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
+            }
 
             // Bonus Health
             this.castle.health = Math.min(this.castle.maxHealth, this.castle.health + 10);
             document.getElementById('health').textContent = this.castle.health;
             document.getElementById('wave').textContent = this.wave;
 
-            // Announce next wave
-            this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
-
-            // Brief pause or next wave message?
+            // Brief pause
             setTimeout(() => {
-                this.betweenWaves = false;
+                // Only if not boss wave started
+                if (!this.isBossWave) this.betweenWaves = false;
+                else this.betweenWaves = false; // Boss wave starts immediately after timeout
             }, 2000);
         }
 
@@ -473,9 +564,38 @@ export default class Game {
         // Draw Wave Announcements
         this.waveAnnouncements.forEach(wa => wa.draw(this.renderer.ctx));
 
+        if (this.currentBoss) {
+            this.currentBoss.draw(this.renderer.ctx);
+        }
+
         // Draw result text
         if (this.lastResult && performance.now() - this.lastResult.time < 1000) {
             this.renderer.drawText(this.lastResult.text, this.canvas.width / 2, this.canvas.height / 2 - 50);
+        }
+    }
+
+    startBossWave() {
+        this.isBossWave = true;
+        this.bossLevel++;
+        this.currentBoss = new Boss(this.bossLevel, this.canvas.width, this.canvas.height);
+
+        // Announce Boss
+        this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height)); // Reuse wave announcement for now?
+        // Or specific boss announcement? The WaveAnnouncement takes "wave" number string constraint.
+        // Let's modify WaveAnnouncement later or accept string. For now, "WAVE 3" is fine, but Boss Name is better.
+        // The previous tool didn't modify WaveAnnouncement to take generic text.
+
+        this.enemiesInWave = 999; // Infinite spawns until boss dies
+        this.enemiesSpawned = 0;
+        this.enemies = []; // Clear previous
+
+        console.log(`Starting Boss Wave: ${this.currentBoss.name}`);
+
+        // Apply Boss Ability (Initial)
+        if (this.currentBoss.ability === 'TIME_WARP') {
+            this.stopwatch.setTimeScale(1.5);
+        } else if (this.currentBoss.ability === 'GLITCH') {
+            this.stopwatch.setGlitch(true);
         }
     }
 

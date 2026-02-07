@@ -4,6 +4,9 @@ export default class Stopwatch {
         this.isRunning = false;
         this.targetTime = 3.00; // Start with 3 seconds
         this.nextTargetDelay = 3.00; // Seconds until next target
+        this.timeScale = 1.0;
+        this.isGlitched = false;
+
         this.tolerance = {
             PERFECT: 0.05,
             GREAT: 0.15,
@@ -30,6 +33,14 @@ export default class Stopwatch {
         }
     }
 
+    setTimeScale(scale) {
+        this.timeScale = scale;
+    }
+
+    setGlitch(enabled) {
+        this.isGlitched = enabled;
+    }
+
     upgradeTolerance() {
         // Only upgrade if not Hell? Or allow upgrading perfect window?
         // For simplicity, just multiply all.
@@ -44,6 +55,8 @@ export default class Stopwatch {
         this.time = 0;
         this.isRunning = false;
         this.targetTime = 3.00;
+        this.timeScale = 1.0;
+        this.isGlitched = false;
     }
 
     start() {
@@ -57,32 +70,34 @@ export default class Stopwatch {
 
     update(deltaTime) {
         if (this.isRunning) {
-            this.time += deltaTime;
+            this.time += deltaTime * this.timeScale;
         }
     }
 
     formatTime(seconds) {
+        if (this.isGlitched && Math.random() > 0.7) {
+            // Random glitch characters
+            const chars = "0123456789.##??@!";
+            let str = "";
+            for (let i = 0; i < 5; i++) str += chars.charAt(Math.floor(Math.random() * chars.length));
+            return str;
+        }
         return seconds.toFixed(2).padStart(5, '0');
     }
 
+    // Alias for compatibility if needed, or remove
     getFormattedTime() {
         return this.formatTime(this.time);
     }
 
-    updateTarget() {
-        // Increment target time for the next round
-        // Logic: Add 2-4 seconds to current time for next target?
-        // Or just fixed increments. Let's do fixed +3 seconds for now.
-        // But we must base it on current TIME, not old target, to avoid falling behind?
-        // No, the game is about stopping AT the target.
-        // So after a stop (attack), we set a NEW target.
-        this.targetTime = Math.ceil(this.time + 3.00) + 0.00; // Ensure it ends in .00
-
-        // Correction: if we are at 3.01 and stop, next target should be 6.00?
-        // Math.floor(time) + 3 might be safer.
-        // Let's settle on: Current Integer + 3.
-        const currentInt = Math.floor(this.time);
-        this.targetTime = currentInt + 3.00;
+    updateTarget(explicitTarget = null) {
+        if (explicitTarget !== null) {
+            this.targetTime = explicitTarget;
+        } else {
+            // Normal Logic: Round down current time + 3
+            const currentInt = Math.floor(this.time);
+            this.targetTime = currentInt + 3.00;
+        }
     }
 
     checkAccuracy() {

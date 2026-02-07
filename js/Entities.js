@@ -343,3 +343,146 @@ export class WaveAnnouncement {
         ctx.restore();
     }
 }
+
+export class Boss {
+    constructor(bossLevel, canvasWidth, canvasHeight) {
+        // Boss Level 1 = A, 2 = B, etc.
+        this.level = bossLevel;
+        // Boss A (level 1) -> charCode 65 ('A')
+        this.name = `BOSS ${String.fromCharCode(64 + bossLevel)}`;
+
+        this.canvasWidth = canvasWidth;
+        this.canvasHeight = canvasHeight;
+
+        // Stats
+        this.maxHealth = 20 + ((bossLevel - 1) * 5);
+        this.health = this.maxHealth;
+        this.radius = 60;
+
+        // Orbit Physics
+        this.orbitRadius = 250;
+        this.angle = 0;
+        this.orbitSpeed = 0.5; // Rad/s
+
+        // Center position (orbit center)
+        this.cx = canvasWidth / 2;
+        this.cy = canvasHeight / 2;
+
+        this.x = this.cx;
+        this.y = this.cy;
+
+        this.active = true;
+
+        // Abilities
+        this.ability = 'NONE';
+        // Simple assignment for now
+        if (bossLevel % 2 === 0) this.ability = 'TIME_WARP';
+        else if (bossLevel > 1) this.ability = 'GLITCH';
+
+        // Enrage / Surge
+        this.isSurging = false;
+        this.surgeTimer = 0;
+        this.surgeCooldown = 15.0; // Cooldown between surges
+        this.surgeDuration = 5.0; // How long surge lasts
+        this.justStartedSurge = false; // Flag for Game.js to catch
+    }
+
+    update(deltaTime) {
+        if (!this.active) return;
+
+        // Orbit Center
+        this.angle += this.orbitSpeed * deltaTime;
+
+        this.x = this.cx + Math.cos(this.angle) * this.orbitRadius;
+        this.y = this.cy + Math.sin(this.angle) * this.orbitRadius;
+
+        // Surge Logic
+        this.justStartedSurge = false; // Reset frame flag
+
+        if (this.isSurging) {
+            this.surgeTimer -= deltaTime;
+            if (this.surgeTimer <= 0) {
+                this.isSurging = false;
+                this.surgeTimer = this.surgeCooldown;
+            }
+        } else {
+            this.surgeTimer -= deltaTime;
+            if (this.surgeTimer <= 0) {
+                this.startSurge();
+            }
+        }
+    }
+
+    startSurge() {
+        this.isSurging = true;
+        this.surgeTimer = this.surgeDuration;
+        this.justStartedSurge = true;
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.active = false;
+            return true; // Died
+        }
+        return false;
+    }
+
+    draw(ctx) {
+        if (!this.active) return;
+
+        ctx.save();
+
+        // Draw Orbit Path (optional, for visual clarity)
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 0, 85, 0.2)';
+        ctx.lineWidth = 2;
+        ctx.arc(this.cx, this.cy, this.orbitRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Draw Boss
+        // Translate to boss position
+        ctx.translate(this.x, this.y);
+
+        // Placeholder visual: Giant Polygon
+        ctx.beginPath();
+        const sides = 5 + (this.level % 3); // Shape changes with level
+        const r = this.radius;
+        for (let i = 0; i < sides; i++) {
+            const theta = (i / sides) * Math.PI * 2;
+            const px = Math.cos(theta) * r;
+            const py = Math.sin(theta) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+
+        ctx.fillStyle = '#ff0055'; // Boss Red
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Draw Name
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 24px "Major Mono Display"';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.name, 0, -this.radius - 20);
+
+        // Draw Health Bar
+        const barWidth = 100;
+        const barHeight = 10;
+        const barY = -this.radius - 10;
+
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
+
+        const pct = Math.max(0, this.health / this.maxHealth);
+        ctx.fillStyle = '#ff0055';
+        ctx.fillRect(-barWidth / 2, barY, barWidth * pct, barHeight);
+
+        ctx.restore();
+    }
+}
