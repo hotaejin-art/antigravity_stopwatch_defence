@@ -211,6 +211,23 @@ export default class Game {
             // Initial Wave Announcement
             this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
 
+            // Debug Menu Listener
+            const jumpBtn = document.getElementById('wave-jump-btn');
+            if (jumpBtn) {
+                // Remove existing to prevent duplicates if start called multiple times?
+                // Game instance is recreated usually? No, `start()` reuses instance.
+                const newBtn = jumpBtn.cloneNode(true);
+                jumpBtn.parentNode.replaceChild(newBtn, jumpBtn);
+
+                newBtn.addEventListener('click', () => {
+                    const select = document.getElementById('wave-select');
+                    const wave = parseInt(select.value, 10);
+                    if (wave > 0) {
+                        this.jumpToWave(wave);
+                    }
+                });
+            }
+
             this.castle = new Castle();
             this.spawnTimer = 0;
             document.getElementById('score').textContent = this.coins;
@@ -596,6 +613,43 @@ export default class Game {
             this.stopwatch.setTimeScale(1.5);
         } else if (this.currentBoss.ability === 'GLITCH') {
             this.stopwatch.setGlitch(true);
+        }
+    }
+
+    jumpToWave(targetWave) {
+        this.wave = targetWave;
+        this.enemies = [];
+        this.shockwaves = [];
+        this.floatingTexts = [];
+        this.waveAnnouncements = [];
+        this.enemiesSpawned = 0;
+        this.betweenWaves = false;
+        this.spawnTimer = 0;
+
+        // Reset Boss State
+        this.isBossWave = false;
+        this.currentBoss = null;
+        this.stopwatch.setTimeScale(1.0);
+        this.stopwatch.setGlitch(false);
+        this.stopwatch.reset();
+        this.stopwatch.start();
+
+        // Update UI
+        document.getElementById('wave').textContent = this.wave;
+
+        // Check if target is boss wave
+        if (this.wave % 3 === 0) {
+            this.bossLevel = Math.floor(this.wave / 3) - 1; // Prepare for increment in startBossWave
+            this.startBossWave();
+        } else {
+            this.bossLevel = Math.floor(this.wave / 3);
+
+            // Scale Difficulty
+            this.enemiesInWave = 10 + (this.wave * 5);
+            this.spawnInterval = Math.max(0.5, 2.0 - (this.wave * 0.1));
+
+            // Announce
+            this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
         }
     }
 

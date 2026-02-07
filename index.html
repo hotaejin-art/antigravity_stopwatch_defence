@@ -29,6 +29,27 @@
             <div id="stopwatch-display">00.00</div>
             <div id="message-area"></div>
 
+            <div id="debug-menu"
+                style="position: absolute; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px; color: white; font-family: 'Roboto Mono', monospace;">
+                <label>Jump to:</label>
+                <select id="wave-select" style="background: black; color: white; border: 1px solid #555;">
+                    <option value="1">Wave 1</option>
+                    <option value="2">Wave 2</option>
+                    <option value="3">Wave 3 (Boss A)</option>
+                    <option value="4">Wave 4</option>
+                    <option value="5">Wave 5</option>
+                    <option value="6">Wave 6 (Boss B)</option>
+                    <option value="7">Wave 7</option>
+                    <option value="8">Wave 8</option>
+                    <option value="9">Wave 9 (Boss C)</option>
+                    <option value="10">Wave 10</option>
+                    <option value="12">Wave 12 (Boss D)</option>
+                    <option value="15">Wave 15 (Boss E)</option>
+                </select>
+                <button id="wave-jump-btn"
+                    style="background: #333; color: white; border: 1px solid #555; cursor: pointer;">GO</button>
+            </div>
+
             <div id="pause-screen" class="screen hidden">
                 <h1>PAUSED</h1>
                 <button id="resume-btn">RESUME</button>
