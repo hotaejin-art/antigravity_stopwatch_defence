@@ -23,6 +23,7 @@ body {
     overflow: hidden;
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
     /* Nice shadow for the frame */
+    flex-shrink: 0;
 }
 
 canvas {
