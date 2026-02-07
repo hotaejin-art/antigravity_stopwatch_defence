@@ -15,8 +15,6 @@ export class Castle {
 
         if (this.imageLoaded) {
             // Draw image centered
-            // Adjust scale as needed. Radius is 30, so diameter 60.
-            // Let's make the tower slightly larger visually
             const size = 120;
             ctx.drawImage(this.image, x - size / 2, y - size / 2, size, size);
         } else {
@@ -221,11 +219,6 @@ export class Enemy {
             const pct = Math.max(0, this.health / this.maxHealth);
             ctx.fillStyle = pct > 0.5 ? '#00ff88' : '#ff4444';
             ctx.fillRect(barX, barY, barWidth * pct, barHeight);
-
-            // Border (optional, keeps it clean)
-            // ctx.strokeStyle = 'white';
-            // ctx.lineWidth = 0.5;
-            // ctx.strokeRect(barX, barY, barWidth, barHeight);
         }
     }
 }
@@ -285,6 +278,67 @@ export class FloatingText {
         ctx.fillStyle = this.color;
         ctx.font = '20px "Major Mono Display"';
         ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+export class WaveAnnouncement {
+    constructor(wave, canvasWidth, canvasHeight) {
+        this.text = `WAVE ${wave}`;
+        this.canvasWidth = canvasWidth;
+        this.canvasHeight = canvasHeight;
+        this.y = canvasHeight * 0.3; // Top 30%
+        this.x = canvasWidth + 200; // Start off-screen right
+        this.active = true;
+
+        // Animation state
+        this.state = 'ENTERING'; // ENTERING -> PAUSED -> EXITING
+        this.timer = 0;
+        this.pauseDuration = 1.0; // Stay in middle for 1s
+    }
+
+    update(deltaTime) {
+        const centerX = this.canvasWidth / 2;
+
+        if (this.state === 'ENTERING') {
+            // Fast approach
+            const dist = this.x - centerX;
+            if (Math.abs(dist) < 5) {
+                this.x = centerX;
+                this.state = 'PAUSED';
+            } else {
+                // Ease out
+                this.x -= (dist * 5 * deltaTime) + (200 * deltaTime);
+            }
+        } else if (this.state === 'PAUSED') {
+            this.timer += deltaTime;
+            if (this.timer >= this.pauseDuration) {
+                this.state = 'EXITING';
+            }
+        } else if (this.state === 'EXITING') {
+            // Accelerate left
+            this.x -= 800 * deltaTime;
+            if (this.x < -200) {
+                this.active = false;
+            }
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.font = 'bold 64px "Major Mono Display"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Glow effect
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#ffffff';
+
+        // Skew for "wind" effect
+        // ctx.transform(1, 0, -0.2, 1, 0, 0); // Horizontal skew
+
         ctx.fillText(this.text, this.x, this.y);
         ctx.restore();
     }

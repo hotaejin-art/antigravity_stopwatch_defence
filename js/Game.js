@@ -1,7 +1,7 @@
 import Renderer from './Renderer.js?v=2';
 import Stopwatch from './Stopwatch.js?v=2';
 import Shop from './Shop.js';
-import { Castle, Enemy, Shockwave, FloatingText } from './Entities.js';
+import { Castle, Enemy, Shockwave, FloatingText, WaveAnnouncement } from './Entities.js';
 import SoundManager from './SoundManager.js?v=3';
 
 export default class Game {
@@ -15,6 +15,7 @@ export default class Game {
         this.enemies = [];
         this.shockwaves = []; // Array for visual effects
         this.floatingTexts = [];
+        this.waveAnnouncements = []; // For flying text
         this.spawnTimer = 0;
         this.spawnInterval = 2.0;
 
@@ -196,6 +197,11 @@ export default class Game {
             this.enemies = [];
             this.shockwaves = [];
             this.floatingTexts = [];
+            this.waveAnnouncements = [];
+
+            // Initial Wave Announcement
+            this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
+
             this.castle = new Castle();
             this.spawnTimer = 0;
             document.getElementById('score').textContent = this.coins;
@@ -385,6 +391,9 @@ export default class Game {
             document.getElementById('health').textContent = this.castle.health;
             document.getElementById('wave').textContent = this.wave;
 
+            // Announce next wave
+            this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
+
             // Brief pause or next wave message?
             setTimeout(() => {
                 this.betweenWaves = false;
@@ -425,6 +434,14 @@ export default class Game {
             }
         }
 
+        // Update Wave Announcements
+        for (let i = this.waveAnnouncements.length - 1; i >= 0; i--) {
+            this.waveAnnouncements[i].update(deltaTime);
+            if (!this.waveAnnouncements[i].active) {
+                this.waveAnnouncements.splice(i, 1);
+            }
+        }
+
         // Check Game Over
         if (this.castle.health <= 0) {
             this.gameOver();
@@ -452,6 +469,9 @@ export default class Game {
 
         // Draw Floating Texts
         this.floatingTexts.forEach(ft => ft.draw(this.renderer.ctx));
+
+        // Draw Wave Announcements
+        this.waveAnnouncements.forEach(wa => wa.draw(this.renderer.ctx));
 
         // Draw result text
         if (this.lastResult && performance.now() - this.lastResult.time < 1000) {
