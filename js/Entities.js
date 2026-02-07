@@ -381,8 +381,9 @@ export class Boss {
         this.cx = canvasWidth / 2;
         this.cy = canvasHeight / 2;
 
-        this.x = this.cx;
-        this.y = this.cy;
+        // Initialize position based on orbit (Prevent appearing at center)
+        this.x = this.cx + Math.cos(this.orbitAngle) * this.orbitRadius;
+        this.y = this.cy + Math.sin(this.orbitAngle) * this.orbitRadius;
 
         this.active = true;
 

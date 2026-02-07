@@ -74,8 +74,8 @@ export default class Stopwatch {
         }
     }
 
-    formatTime(seconds) {
-        if (this.isGlitched && Math.random() > 0.7) {
+    formatTime(seconds, forceNoGlitch = false) {
+        if (!forceNoGlitch && this.isGlitched && Math.random() > 0.7) {
             // Random glitch characters
             const chars = "0123456789.##??@!";
             let str = "";

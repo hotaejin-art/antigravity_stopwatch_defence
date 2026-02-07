@@ -59,6 +59,9 @@ export default class Game {
             });
         });
 
+        this.screenFlash = { active: false, alpha: 0, color: 'white', duration: 0.5 };
+        this.cameraShake = { active: false, intensity: 0, duration: 0 };
+
         document.getElementById('restart-btn').addEventListener('click', () => {
             // For restart, maybe go back to menu or restart same diff?
             // Let's restart with same difficulty for now, OR show start screen again.
@@ -234,6 +237,10 @@ export default class Game {
             this.spawnTimer = 0;
             document.getElementById('score').textContent = this.coins;
             document.getElementById('wave').textContent = this.wave;
+
+            // Reset Stopwatch Display Style (Fix for Overdrive persistance)
+            document.getElementById('stopwatch-display').style.color = 'rgba(255, 255, 255, 0.9)';
+            document.getElementById('stopwatch-display').style.textShadow = '0 0 10px rgba(0, 0, 0, 0.8)';
 
             if (this.castle) {
                 document.getElementById('health').textContent = this.castle.health;
@@ -420,9 +427,35 @@ export default class Game {
     }
 
     update(deltaTime) {
+        // Flash Logic
+        if (this.screenFlash.active) {
+            this.screenFlash.alpha -= deltaTime / this.screenFlash.duration;
+            if (this.screenFlash.alpha <= 0) {
+                this.screenFlash.active = false;
+                this.screenFlash.alpha = 0;
+            }
+        }
+
+        // Shake Logic
+        if (this.cameraShake.active) {
+            this.cameraShake.duration -= deltaTime;
+            if (this.cameraShake.duration <= 0) {
+                this.cameraShake.active = false;
+                this.cameraShake.intensity = 0;
+                this.renderer.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            } else {
+                // Apply shake
+                const dx = (Math.random() - 0.5) * this.cameraShake.intensity;
+                const dy = (Math.random() - 0.5) * this.cameraShake.intensity;
+                this.renderer.ctx.setTransform(1, 0, 0, 1, dx, dy);
+            }
+        } else {
+            // Ensure reset
+            this.renderer.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+
         this.stopwatch.update(deltaTime);
 
-        // Spawn Enemies
         // Spawn Enemies
         if (!this.betweenWaves) {
             if (this.isBossWave) {
@@ -489,6 +522,7 @@ export default class Game {
                     }
                 } else if (this.currentBoss && !this.currentBoss.active) {
                     // Boss Defeated!
+                    this.soundManager.playBossDeath();
                     this.isBossWave = false;
                     this.currentBoss = null;
 
@@ -496,6 +530,12 @@ export default class Game {
                     this.enemies.forEach(e => e.takeDamage(999));
                     this.enemies = [];
                     this.enemiesSpawned = this.enemiesInWave; // Force clear condition
+
+                    // Dramatic Death Effect
+                    // Dramatic Death Effect
+                    this.triggerScreenFlash('white', 0.1, 0.4); // Short, semi-transparent flash
+                    this.triggerCameraShake(20, 0.5); // Intense shake
+                    this.triggerCameraShake(20, 0.5); // Intense shake
 
                     // Reset Effects
                     this.stopwatch.setTimeScale(1.0);
@@ -526,20 +566,23 @@ export default class Game {
         }
 
         // Check Wave Clear
-        if (!this.isBossWave && this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
+        if (!this.betweenWaves && !this.isBossWave && this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
             // Wave Clear!
             this.betweenWaves = true;
             this.wave++;
 
             // Check for Boss Wave (Every 3rd wave)
             if (this.wave % 3 === 0) {
-                // Delay slightly before boss start?
+                this.isBossWave = true;
+                this.enemiesInWave = 999;
+                this.enemiesSpawned = 0;
                 setTimeout(() => this.startBossWave(), 1000);
             } else {
                 // Reset enemies count for normal wave (Calculate based on wave number)
-                this.enemiesInWave = 10 + (this.wave * 5);
+                // Adjusted for faster pacing: fewer enemies but faster spawns
+                this.enemiesInWave = 10 + (this.wave * 3);
                 this.enemiesSpawned = 0;
-                this.spawnInterval = Math.max(0.5, 2.0 - (this.wave * 0.1));
+                this.spawnInterval = Math.max(0.4, 1.8 - (this.wave * 0.15));
 
                 // Announce next wave
                 this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
@@ -610,7 +653,7 @@ export default class Game {
         document.getElementById('stopwatch-display').innerHTML = `
             ${this.stopwatch.formatTime(this.stopwatch.time)}
             <span style="font-size: 0.5em; color: #00ffff; margin-top: 5px;">
-                ${this.stopwatch.formatTime(this.stopwatch.targetTime)}
+                ${this.stopwatch.formatTime(this.stopwatch.targetTime, true)}
             </span>
         `;
     }
@@ -639,18 +682,36 @@ export default class Game {
         if (this.lastResult && performance.now() - this.lastResult.time < 1000) {
             this.renderer.drawText(this.lastResult.text, this.canvas.width / 2, this.canvas.height / 2 - 50);
         }
+
+        // Screen Flash Effect
+        if (this.screenFlash.active) {
+            this.renderer.ctx.save();
+            this.renderer.ctx.fillStyle = this.screenFlash.color;
+            this.renderer.ctx.globalAlpha = this.screenFlash.alpha;
+            this.renderer.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.renderer.ctx.restore();
+        }
+
+        // Screen Flash Effect
+        if (this.screenFlash.active) {
+            this.renderer.ctx.save();
+            this.renderer.ctx.fillStyle = this.screenFlash.color;
+            this.renderer.ctx.globalAlpha = this.screenFlash.alpha;
+            this.renderer.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.renderer.ctx.restore();
+        }
     }
 
     startBossWave() {
+        // Flags already set in update() to prevent race
         this.isBossWave = true;
+
         this.bossLevel++;
         this.currentBoss = new Boss(this.bossLevel, this.canvas.width, this.canvas.height);
 
         // Announce Boss
-        this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height)); // Reuse wave announcement for now?
-        // Or specific boss announcement? The WaveAnnouncement takes "wave" number string constraint.
-        // Let's modify WaveAnnouncement later or accept string. For now, "WAVE 3" is fine, but Boss Name is better.
-        // The previous tool didn't modify WaveAnnouncement to take generic text.
+        // We can create a speciai Boss Announcement text if needed, or stick to Wave
+        this.waveAnnouncements.push(new WaveAnnouncement(this.wave, this.canvas.width, this.canvas.height));
 
         this.enemiesInWave = 999; // Infinite spawns until boss dies
         this.enemiesSpawned = 0;
@@ -834,5 +895,18 @@ export default class Game {
         this.floatingTexts = [];
         this.renderer.clear();
         this.soundManager.playBGM('audio/bgm.mp3?v=3');
+    }
+
+    triggerScreenFlash(color = 'white', duration = 0.5, maxAlpha = 1.0) {
+        this.screenFlash.active = true;
+        this.screenFlash.color = color;
+        this.screenFlash.alpha = maxAlpha;
+        this.screenFlash.duration = duration;
+    }
+
+    triggerCameraShake(intensity, duration) {
+        this.cameraShake.active = true;
+        this.cameraShake.intensity = intensity;
+        this.cameraShake.duration = duration;
     }
 }

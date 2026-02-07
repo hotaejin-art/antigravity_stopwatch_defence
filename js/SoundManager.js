@@ -122,6 +122,13 @@ export default class SoundManager {
         audio.play().catch(e => console.warn("Overdrive end SFX failed", e));
     }
 
+    playBossDeath() {
+        if (!this.initialized) return;
+        const audio = new Audio('audio/boss_death.mp3');
+        audio.volume = 0.7; // Slightly louder for impact
+        audio.play().catch(e => console.warn("Boss death SFX failed", e));
+    }
+
     // --- BGM ---
     playBGM(url) {
         if (!url) url = this.bgmUrl;
