@@ -266,7 +266,12 @@ export default class Game {
         console.log('Attack result:', result);
         this.lastResult = { text: result, time: performance.now() };
 
-        this.triggerAttack(result);
+        try {
+            this.triggerAttack(result);
+        } catch (e) {
+            console.error("Attack Error: ", e);
+            alert("Error in attack: " + e.message + "\n" + e.stack);
+        }
 
         setTimeout(() => {
             this.isProcessingAttack = false; // Unlock input
@@ -310,7 +315,7 @@ export default class Game {
                 // Perfect might deal double damage or just guanrateed hit?
                 this.currentBoss.takeDamage(1 * powerLvl);
                 this.floatingTexts.push(new FloatingText(`-${1 * powerLvl}`, this.currentBoss.x, this.currentBoss.y, '#ff0055'));
-                // Play Boss Hit Sound?
+                this.soundManager.playBossHit(); // 보스 전용 피격음
             }
 
             // Kill all enemies
@@ -346,6 +351,7 @@ export default class Game {
                 const powerLvl = this.shop.getUpgrade('power').level;
                 this.currentBoss.takeDamage(1 * powerLvl);
                 this.floatingTexts.push(new FloatingText(`-${1 * powerLvl}`, this.currentBoss.x, this.currentBoss.y, '#ffae00'));
+                this.soundManager.playBossHit(); // 보스 전용 피격음
             }
 
             this.combo = 0; // Reset combo
@@ -471,9 +477,14 @@ export default class Game {
                         this.soundManager.playOverdriveStart();
 
                         // Visual Flare
-                        // Create a specific large floating text or just standard for now, will update class next
-                        const surgeText = new FloatingText("OVERDRIVE!", this.canvas.width / 2, this.canvas.height / 2 - 150, '#ff0055');
-                        surgeText.size = 60; // Manually properties injection before class update, or just wait for class update
+                        let overDriveMsg = "OVERDRIVE!";
+                        let msgSize = 60;
+                        if (this.currentBoss.ability === 'OVERDRIVE_SPEED') {
+                            overDriveMsg = "OVERDRIVE! (2x SPEED)";
+                            msgSize = 45;
+                        }
+                        const surgeText = new FloatingText(overDriveMsg, this.canvas.width / 2, this.canvas.height / 2 - 150, '#ff0055');
+                        surgeText.size = msgSize;
                         this.floatingTexts.push(surgeText);
 
                         // Brief Pause for impact (Freeze frame)
@@ -489,6 +500,10 @@ export default class Game {
                         const time = Math.floor(this.stopwatch.time) + 1 + (decimal / 100);
                         this.stopwatch.updateTarget(time);
 
+                        if (this.currentBoss.ability === 'OVERDRIVE_SPEED') {
+                            this.stopwatch.setTimeScale(2.0); // 2배속
+                        }
+
                         setTimeout(() => {
                             this.isPaused = false;
                             this.isOverdrivePaused = false; // Clear flag
@@ -503,6 +518,10 @@ export default class Game {
                         endText.size = 40;
                         this.floatingTexts.push(endText);
                         this.soundManager.playOverdriveEnd();
+
+                        if (this.currentBoss.ability === 'OVERDRIVE_SPEED') {
+                            this.stopwatch.setTimeScale(1.0); // 원래 속도로 복구
+                        }
                     }
 
                     // Reset Stopwatch Color if not surging
@@ -547,6 +566,19 @@ export default class Game {
 
                     // Restore Normal BGM
                     this.soundManager.playBGM('audio/bgm.mp3?v=3');
+
+                    // Boss clear bonus: Max HP +10%, Heal 10%
+                    const hpBonus = Math.floor(this.castle.maxHealth * 0.1);
+                    this.castle.maxHealth += hpBonus;
+                    this.castle.health = Math.min(this.castle.maxHealth, this.castle.health + hpBonus);
+                    
+                    document.getElementById('health').textContent = this.castle.health;
+
+                    const hpText = new FloatingText(`MAX HP +${hpBonus} & HEAL!`, this.canvas.width / 2, this.canvas.height / 2 - 100, '#00ff88');
+                    hpText.size = 30;
+                    hpText.life = 2.5; // 화면에 2.5초간 머무름
+                    hpText.velocity = 30; // 위로 떠오르는 속도를 살짝 낮춰 잘 보이게 함
+                    this.floatingTexts.push(hpText);
                 }
             } else if (this.enemiesSpawned < this.enemiesInWave) {
                 this.spawnTimer += deltaTime;
@@ -720,9 +752,7 @@ export default class Game {
         console.log(`Starting Boss Wave: ${this.currentBoss.name}`);
 
         // Apply Boss Ability (Initial)
-        if (this.currentBoss.ability === 'TIME_WARP') {
-            this.stopwatch.setTimeScale(1.5);
-        } else if (this.currentBoss.ability === 'GLITCH') {
+        if (this.currentBoss.ability === 'GLITCH') {
             this.stopwatch.setGlitch(true);
         }
 

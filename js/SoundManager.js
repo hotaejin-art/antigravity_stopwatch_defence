@@ -129,6 +129,13 @@ export default class SoundManager {
         audio.play().catch(e => console.warn("Boss death SFX failed", e));
     }
 
+    playBossHit() {
+        if (!this.initialized) return;
+        const audio = new Audio('audio/boss_hit.mp3');
+        audio.volume = 0.8; 
+        audio.play().catch(e => console.warn("Boss hit SFX failed", e));
+    }
+
     // --- BGM ---
     playBGM(url) {
         if (!url) url = this.bgmUrl;

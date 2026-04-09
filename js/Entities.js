@@ -401,9 +401,9 @@ export class Boss {
 
         // Abilities
         this.ability = 'NONE';
-        // Simple assignment for now
-        if (bossLevel % 2 === 0) this.ability = 'TIME_WARP';
-        else if (bossLevel > 1) this.ability = 'GLITCH';
+        if (this.level === 3) this.ability = 'GLITCH';
+        else if (this.level === 4) this.ability = 'OVERDRIVE_CONSTANT';
+        else if (this.level === 5) this.ability = 'OVERDRIVE_SPEED';
 
         // Enrage / Surge
         this.isSurging = false;
@@ -412,10 +412,23 @@ export class Boss {
         this.surgeDuration = 8.0; // How long surge lasts
         this.justStartedSurge = false; // Flag for Game.js to catch
         this.justEndedSurge = false; // Flag for end of surge
+        
+        // 보스 D 전용 처리: 처음부터 오버드라이브 발동, 지속시간 무한
+        if (this.ability === 'OVERDRIVE_CONSTANT') {
+            this.surgeTimer = 0.01; // 첫 프레임에 바로 발동되게 설정
+            this.surgeDuration = Infinity; // 영구 지속
+        }
+
+        // 피격 시 흰색 점멸 이펙트용 타이머
+        this.hitFlashTimer = 0;
     }
 
     update(deltaTime) {
         if (!this.active) return;
+
+        if (this.hitFlashTimer > 0) {
+            this.hitFlashTimer -= deltaTime;
+        }
 
         // Entrance Animation: Shrink orbit radius
         if (this.orbitRadius > this.targetOrbitRadius) {
@@ -467,6 +480,8 @@ export class Boss {
 
     takeDamage(amount) {
         this.health -= amount;
+        this.hitFlashTimer = 0.1; // 타격받을 때마다 0.1초 동안 흰색/밝은 점멸 플래그
+
         if (this.health <= 0) {
             this.active = false;
             return true; // Died
@@ -492,7 +507,14 @@ export class Boss {
         if (this.level <= 4 && this.image.complete) {
             ctx.rotate(this.selfRotation);
             const size = this.radius * 2.8; // Adjust size multiplier as needed
+            
+            // 피격 시 하얀 점멸 필터 적용 (투명도 유지)
+            if (this.hitFlashTimer > 0) {
+                ctx.filter = 'brightness(200%) drop-shadow(0 0 10px white)'; // 사각형 문제를 피해 밝기와 채도로 번쩍임 연출
+            }
+            
             ctx.drawImage(this.image, -size / 2, -size / 2, size, size);
+            ctx.filter = 'none'; // 필터 원상복구
 
             // Optional: Glow effect if surging
             if (this.isSurging) {
