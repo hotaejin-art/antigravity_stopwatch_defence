@@ -3,6 +3,7 @@ import Stopwatch from './Stopwatch.js?v=2';
 import Shop from './Shop.js';
 import { Castle, Enemy, Shockwave, FloatingText, WaveAnnouncement, Boss } from './Entities.js';
 import SoundManager from './SoundManager.js?v=3';
+import SupabaseManager from './SupabaseManager.js';
 
 export default class Game {
     constructor() {
@@ -11,7 +12,9 @@ export default class Game {
         this.stopwatch = new Stopwatch();
         this.shop = new Shop();
         this.soundManager = new SoundManager();
+        this.dbManager = new SupabaseManager();
         this.castle = new Castle();
+        this.pendingRecord = null;
         this.enemies = [];
         this.shockwaves = []; // Array for visual effects
         this.floatingTexts = [];
@@ -58,6 +61,37 @@ export default class Game {
                 this.soundManager.playUI('click');
             });
         });
+
+        const rankingBtn = document.getElementById('ranking-btn');
+        if (rankingBtn) {
+            rankingBtn.addEventListener('click', () => {
+                this.soundManager.playUI('click');
+                this.openRanking('NORMAL'); // Default tab
+            });
+        }
+        
+        const closeRankingBtn = document.getElementById('close-ranking-btn');
+        if (closeRankingBtn) {
+            closeRankingBtn.addEventListener('click', () => {
+                this.soundManager.playUI('click');
+                document.getElementById('ranking-screen').classList.add('hidden');
+            });
+        }
+
+        document.querySelectorAll('.rank-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const diff = e.target.dataset.target;
+                this.openRanking(diff);
+                this.soundManager.playUI('click');
+            });
+        });
+
+        const submitNameBtn = document.getElementById('submit-name-btn');
+        if (submitNameBtn) {
+            submitNameBtn.addEventListener('click', () => {
+                this.submitName();
+            });
+        }
 
         this.screenFlash = { active: false, alpha: 0, color: 'white', duration: 0.5 };
         this.cameraShake = { active: false, intensity: 0, duration: 0 };
@@ -199,6 +233,7 @@ export default class Game {
             this.score = 0;
             this.coins = 0;
             this.combo = 0;
+            this.totalPlayTime = 0;
             this.wave = 1;
             this.enemiesInWave = 10;
             this.enemiesSpawned = 0;
@@ -433,6 +468,7 @@ export default class Game {
     }
 
     update(deltaTime) {
+        this.totalPlayTime += deltaTime;
         // Flash Logic
         if (this.screenFlash.active) {
             this.screenFlash.alpha -= deltaTime / this.screenFlash.duration;
@@ -811,6 +847,9 @@ export default class Game {
         this.soundManager.playGameOver();
         this.soundManager.stopBGM();
         this.isRunning = false;
+        
+        this.saveScore(); // Save high score
+
         document.getElementById('game-over-screen').classList.remove('hidden');
         document.getElementById('final-score').textContent = this.coins;
     }
@@ -818,6 +857,8 @@ export default class Game {
     playEnding() {
         this.isRunning = false;
         this.soundManager.stopBGM();
+
+        this.saveTime(); // Save clear time
 
         const endingScreen = document.getElementById('ending-screen');
         const video = document.getElementById('ending-video');
@@ -955,6 +996,105 @@ export default class Game {
         this.floatingTexts = [];
         this.renderer.clear();
         this.soundManager.playBGM('audio/bgm.mp3?v=3');
+    }
+
+    saveScore() {
+        const diff = this.stopwatch.difficulty || 'NORMAL';
+        const key = `defense_highscore_${diff}`;
+        const prevData = localStorage.getItem(key);
+        const prevScore = prevData ? parseInt(prevData, 10) : 0;
+
+        if (this.coins > prevScore) {
+            localStorage.setItem(key, this.coins);
+            this.pendingRecord = { type: 'score', score: this.coins, difficulty: diff };
+            this.showNameInput();
+        }
+    }
+
+    saveTime() {
+        const diff = this.stopwatch.difficulty || 'NORMAL';
+        const key = `defense_fastestTime_${diff}`;
+        const prevData = localStorage.getItem(key);
+        const prevTime = prevData ? parseFloat(prevData) : Infinity;
+
+        if (this.totalPlayTime < prevTime) {
+            localStorage.setItem(key, this.totalPlayTime.toString());
+            this.pendingRecord = { type: 'time', time: this.totalPlayTime, difficulty: diff };
+            this.showNameInput();
+        }
+    }
+
+    showNameInput() {
+        document.getElementById('name-input-screen').classList.remove('hidden');
+    }
+
+    async submitName() {
+        const input = document.getElementById('nickname-input');
+        const name = input.value.trim() || 'Anonymous';
+        
+        if (this.pendingRecord) {
+            if (this.pendingRecord.type === 'score') {
+                await this.dbManager.saveScore(name, this.pendingRecord.difficulty, this.pendingRecord.score);
+            } else if (this.pendingRecord.type === 'time') {
+                await this.dbManager.saveClearTime(name, this.pendingRecord.difficulty, this.pendingRecord.time);
+            }
+            this.pendingRecord = null;
+        }
+        
+        document.getElementById('name-input-screen').classList.add('hidden');
+    }
+
+    formatDisplayTime(seconds) {
+        if (!seconds || seconds === Infinity) return "-";
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 100);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    }
+
+    async openRanking(diffTarget) {
+        document.getElementById('ranking-screen').classList.remove('hidden');
+        
+        // Update Tabs
+        document.querySelectorAll('.rank-tab-btn').forEach(btn => {
+            if (btn.dataset.target === diffTarget) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+
+        // Show Local Record Info At Bottom
+        const timeKey = `defense_fastestTime_${diffTarget}`;
+        const timeStr = localStorage.getItem(timeKey);
+        const scoreKey = `defense_highscore_${diffTarget}`;
+        const scoreStr = localStorage.getItem(scoreKey);
+        const localTimeInfo = timeStr ? this.formatDisplayTime(parseFloat(timeStr)) : '-';
+        const localScoreInfo = scoreStr ? scoreStr : '0';
+        document.getElementById('local-record-text').textContent = `[MY LOCAL RECORD] TIME: ${localTimeInfo} | SCORE: ${localScoreInfo}`;
+
+        // Load Global Time
+        const timeTbody = document.getElementById('time-rank-body');
+        timeTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>';
+        const times = await this.dbManager.getClearTimes(diffTarget);
+        timeTbody.innerHTML = '';
+        if (times.length === 0) {
+            timeTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No records yet</td></tr>';
+        } else {
+            times.forEach((doc, i) => {
+                timeTbody.innerHTML += `<tr><td>${i+1}</td><td>${doc.name}</td><td>${this.formatDisplayTime(doc.time)}</td></tr>`;
+            });
+        }
+
+        // Load Global Score
+        const scoreTbody = document.getElementById('score-rank-body');
+        scoreTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>';
+        const scores = await this.dbManager.getHighScores(diffTarget);
+        scoreTbody.innerHTML = '';
+        if (scores.length === 0) {
+            scoreTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No records yet</td></tr>';
+        } else {
+            scores.forEach((doc, i) => {
+                scoreTbody.innerHTML += `<tr><td>${i+1}</td><td>${doc.name}</td><td>${doc.score}</td></tr>`;
+            });
+        }
     }
 
     triggerScreenFlash(color = 'white', duration = 0.5, maxAlpha = 1.0) {

@@ -380,3 +380,63 @@ button:hover {
         box-shadow: 0 0 20px #f00;
     }
 }
+
+.ranking-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    width: 80%;
+    max-width: 600px;
+}
+
+.ranking-section {
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+}
+
+.rank-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 18px;
+}
+
+.rank-table td {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+}
+
+.rank-table tr:last-child td {
+    border-bottom: none;
+}
+
+.rank-table .val {
+    text-align: right;
+    font-weight: bold;
+    color: white;
+}
+
+.ranking-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.rank-tab-btn {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #555;
+    color: #fff;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rank-tab-btn.active {
+    background: gold;
+    color: black;
+    border-color: gold;
+    font-weight: bold;
+}
