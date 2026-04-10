@@ -397,6 +397,8 @@ export class Boss {
             this.image.src = 'img/boss_c.png';
         } else if (this.level === 4) {
             this.image.src = 'img/boss_d.png';
+        } else if (this.level === 5) {
+            this.image.src = 'img/boss_e.png';
         }
 
         // Abilities
@@ -503,8 +505,8 @@ export class Boss {
         // Translate to boss position
         ctx.translate(this.x, this.y);
 
-        // Draw Boss Image (Level 1-4)
-        if (this.level <= 4 && this.image.complete) {
+        // Draw Boss Image (Level 1-5)
+        if (this.level <= 5 && this.image.complete) {
             ctx.rotate(this.selfRotation);
             const size = this.radius * 2.8; // Adjust size multiplier as needed
             

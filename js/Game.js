@@ -541,6 +541,7 @@ export default class Game {
                     }
                 } else if (this.currentBoss && !this.currentBoss.active) {
                     // Boss Defeated!
+                    const defeatedBossLevel = this.currentBoss.level;
                     this.soundManager.playBossDeath();
                     this.isBossWave = false;
                     this.currentBoss = null;
@@ -549,6 +550,11 @@ export default class Game {
                     this.enemies.forEach(e => e.takeDamage(999));
                     this.enemies = [];
                     this.enemiesSpawned = this.enemiesInWave; // Force clear condition
+
+                    if (defeatedBossLevel === 5) {
+                        this.playEnding();
+                        return; // Stop further processing
+                    }
 
                     // Dramatic Death Effect
                     // Dramatic Death Effect
@@ -809,6 +815,25 @@ export default class Game {
         document.getElementById('final-score').textContent = this.coins;
     }
 
+    playEnding() {
+        this.isRunning = false;
+        this.soundManager.stopBGM();
+
+        const endingScreen = document.getElementById('ending-screen');
+        const video = document.getElementById('ending-video');
+        
+        endingScreen.classList.remove('hidden');
+        
+        // Hide HUD and other UI things
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('stopwatch-display').style.display = 'none';
+        
+        video.onended = () => {
+            this.returnToMenu();
+        };
+        video.play();
+    }
+
     openShop() {
         this.isRunning = false; // Pause game
         this.updateShopUI();
@@ -918,6 +943,11 @@ export default class Game {
         document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('shop-screen').classList.add('hidden');
+        document.getElementById('ending-screen').classList.add('hidden');
+        
+        document.getElementById('hud').style.display = 'flex';
+        document.getElementById('stopwatch-display').style.display = 'flex';
+
         document.getElementById('start-screen').classList.remove('hidden');
 
         this.enemies = [];
