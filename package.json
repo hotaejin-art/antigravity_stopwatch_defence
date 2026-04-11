@@ -1,0 +1,16 @@
+{
+  "name": "stopwatch-defence",
+  "version": "1.0.0",
+  "description": "Stopwatch Defence Game",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "npx electron-packager . StopwatchDefence --platform=win32 --arch=x64 --out=dist/ --overwrite --asar"
+  },
+  "author": "Indie Developer",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}
