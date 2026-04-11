@@ -6,24 +6,29 @@
     user-select: none;
 }
 
+html, body {
+    height: 100%;
+}
+
 body {
     background-color: #111;
     color: #fff;
-    overflow: hidden;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
 }
 
 #game-container {
     position: relative;
-    /* Resolution will be set by JS */
+    width: 720px;
+    height: 1280px;
+    margin: 0 auto;
     overflow: hidden;
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-    /* Nice shadow for the frame */
-    flex-shrink: 0;
 }
 
 canvas {

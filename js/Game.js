@@ -50,7 +50,15 @@ export default class Game {
     }
 
     init() {
+        // WebView 렌더링 타이밍 버그 해결: 로딩 직후 2초 동안 0.1초마다 강제로 크기 재계산
         this.resize();
+        let resizeAttempts = 0;
+        const resizeInterval = setInterval(() => {
+            this.resize();
+            resizeAttempts++;
+            if (resizeAttempts > 20) clearInterval(resizeInterval);
+        }, 100);
+
         window.addEventListener('resize', () => this.resize());
 
         // document.getElementById('start-btn').addEventListener('click', () => this.start());
@@ -190,23 +198,10 @@ export default class Game {
         this.canvas.height = LOGICAL_HEIGHT;
         this.renderer.resize(LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
-        // Scale container to fit window
-        const scaleX = window.innerWidth / LOGICAL_WIDTH;
-        const scaleY = window.innerHeight / LOGICAL_HEIGHT;
-        const scale = Math.min(scaleX, scaleY); // Fit inside
-
         const container = document.getElementById('game-container');
         container.style.width = `${LOGICAL_WIDTH}px`;
         container.style.height = `${LOGICAL_HEIGHT}px`;
-        container.style.transform = `scale(${scale})`;
-        container.style.transformOrigin = 'center center'; // Scale from center
-
-        // Center positioning handled by flex body in CSS, but transform can mess with layout flow if not careful.
-        // Since body is flex center, and container has fixed size, scale will shrink/grow it visually.
-        // We might need to handle absolute centering if scale affects flex layout weirdly.
-        // Actually, flex center works on the *layout* size. If we scale, the layout size stays constant unless we set it.
-        // Wait, if we set width/height to 720/1280, it will be huge on desktop if not scaled down, or overflow on mobile.
-        // The transform visually scales it.
+        container.style.transform = 'none';
     }
 
     start(difficulty) {
